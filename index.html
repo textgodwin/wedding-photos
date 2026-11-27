@@ -81,7 +81,7 @@ h1{margin:14px 0 0;font-size:60px;line-height:1.05;font-weight:400}
   <button class="btn fab" id="up2">Upload Photos</button>
 </div>
 
-<input type="file" id="file" accept="image/*" multiple hidden>
+<input type="file" id="file" accept="image/*" multiple style="position:fixed;left:-9999px;top:0;width:1px;height:1px;opacity:0" tabindex="-1" aria-hidden="true">
 
 <div class="ov" id="ov"><div class="sheet" id="sheet"></div></div>
 
@@ -105,14 +105,28 @@ function pick(){
   if(!SCRIPT_URL){ sheet('<h3>Almost ready</h3><p>The photo album is not connected yet. Please check back soon.</p><button class="btn" onclick="closeSheet()">OK</button>'); return; }
   $('file').value=''; $('file').click();
 }
+var MAX=20;
 $('up1').onclick=pick; $('up2').onclick=pick;
 
 $('file').onchange=function(){
-  var fs=[].slice.call(this.files).slice(0,30); if(!fs.length) return;
-  items=fs.map(function(f){return {file:f,id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),b64:null,done:false,url:URL.createObjectURL(f)}});
-  var t=items.slice(0,9).map(function(i){return '<img src="'+i.url+'" alt="">'}).join('');
-  sheet('<h3>Selected photos</h3><p>'+items.length+' ready to upload</p><div class="thumbs">'+t+'</div><div class="row"><button class="btn line" onclick="cancelSel()">Cancel</button><button class="btn" onclick="startUp()">Upload</button></div>');
+  var fs=[].slice.call(this.files); if(!fs.length) return;
+  var key=function(f){return f.name+'|'+f.size+'|'+f.lastModified};
+  var have={}; items.forEach(function(i){have[key(i.file)]=1});
+  var skipped=0;
+  fs.forEach(function(f){
+    if(have[key(f)]) return;
+    if(items.length>=MAX){skipped++;return;}
+    have[key(f)]=1;
+    items.push({file:f,id:Date.now().toString(36)+Math.random().toString(36).slice(2,8),b64:null,done:false,url:URL.createObjectURL(f)});
+  });
+  showSel(skipped);
 };
+function showSel(skipped){
+  var t=items.map(function(i){return '<img src="'+i.url+'" alt="">'}).join('');
+  var note=skipped?'<p style="color:#b00">Only '+MAX+' photos can be uploaded at a time. '+skipped+' extra photo'+(skipped>1?'s were':' was')+' skipped.</p>':'';
+  var more=items.length<MAX?'<button class="btn line" onclick="pick()">Add more photos</button>':'';
+  sheet('<h3>Selected photos</h3><p>'+items.length+' of '+MAX+' ready to upload</p>'+note+'<div class="thumbs">'+t+'</div>'+more+'<div class="row"><button class="btn line" onclick="cancelSel()">Cancel</button><button class="btn" onclick="startUp()">Upload</button></div>');
+}
 function cancelSel(){ items.forEach(function(i){URL.revokeObjectURL(i.url)}); items=[]; closeSheet(); }
 
 /* ---------- upload ---------- */
